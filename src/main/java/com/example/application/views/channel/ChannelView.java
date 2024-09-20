@@ -14,6 +14,8 @@ import com.vaadin.flow.router.BeforeEvent;
 import com.vaadin.flow.router.HasDynamicTitle;
 import com.vaadin.flow.router.HasUrlParameter;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.spring.security.AuthenticationContext;
+import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
 import reactor.core.Disposable;
 
@@ -23,6 +25,7 @@ import java.util.List;
 @Route(value = "channel", layout = MainLayout.class)
 @PermitAll
 public class ChannelView extends VerticalLayout implements HasUrlParameter<String>, HasDynamicTitle {
+    private final String currentUserName;
     private String channelName;
     private final ChatService chatService;
     private final MessageList messageList;
@@ -30,7 +33,9 @@ public class ChannelView extends VerticalLayout implements HasUrlParameter<Strin
     private static final int HISTORY_SIZE = 20;
     private final LimitedSortedAppendOnlyList<Message> receivedMessages;
 
-    public ChannelView(ChatService chatService) {
+    public ChannelView(ChatService chatService,
+                       AuthenticationContext authenticationContext) {
+        this.currentUserName = authenticationContext.getPrincipalName().orElseThrow();
         this.chatService = chatService;
 
         receivedMessages = new LimitedSortedAppendOnlyList<>(
@@ -41,6 +46,7 @@ public class ChannelView extends VerticalLayout implements HasUrlParameter<Strin
         setSizeFull();
 
         messageList = new MessageList();
+        messageList.addClassNames(LumoUtility.Border.ALL);
         messageList.setSizeFull();
         add(messageList);
 
@@ -79,11 +85,17 @@ public class ChannelView extends VerticalLayout implements HasUrlParameter<Strin
     }
 
     private MessageListItem createMessageListItem(Message message) {
-        return new MessageListItem(
+        var item = new MessageListItem(
                 message.message(),
                 message.timestamp(),
                 message.author()
         );
+        item.setUserColorIndex(Math.abs(message.author().hashCode() % 7));
+        item.addClassNames(LumoUtility.Margin.SMALL, LumoUtility.BorderRadius.MEDIUM);
+        if (message.author().equals(currentUserName)) {
+            item.addClassNames(LumoUtility.Background.CONTRAST_5);
+        }
+        return item;
     }
 
     private void sendMessage(String message) {
